@@ -7,7 +7,7 @@ ENV HOME=/root
 WORKDIR /root
 
 RUN DEBIAN_FRONTEND=noninteractive apt -y update \
-	&& DEBIAN_FRONTEND=noninteractive apt -y install libstring-shellquote-perl libipc-system-simple-perl pkg-config libgsl-dev libncurses-dev \
+	&& DEBIAN_FRONTEND=noninteractive apt -y install libstring-shellquote-perl libipc-system-simple-perl pkg-config libgsl-dev libncurses-dev m4 \
 	&& DEBIAN_FRONTEND=noninteractive apt clean \
 	&& rm -rf /var/cache/apt/lists/*
 
@@ -15,9 +15,9 @@ USER opam:opam
 ENV HOME=/home/opam
 WORKDIR /home/opam
 
-RUN opam install dune camlp5 ocamlfind curses gsl num
+RUN opam install dune camlp5 ocamlfind curses gsl num camlp-streams
 
-RUN git clone https://github.com/pelzlpj/orpie.git \
+RUN git clone https://github.com/erhannis/orpie.git \
 	&& cd orpie \
 	&& eval $(opam config env) \
 	&& make install \
