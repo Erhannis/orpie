@@ -51,7 +51,8 @@ let create_windows screen =
          {stdscr = screen; lines = height; cols = width; 
          help_win = left_win; hw_lines = (height - 2); hw_cols = 40;
          stack_win = right_win; sw_lines = (height - 2); sw_cols = 40;
-         entry_win = bottom_win; ew_lines = 2; ew_cols = 80}
+         entry_win = bottom_win; ew_lines = 2; ew_cols = 80;
+         is_paused = false}
       else if width >= 40 then
          (* only the stack window is provided *)
          let right_win = newwin (height - 2) 40 0 0 and
@@ -59,13 +60,30 @@ let create_windows screen =
          {stdscr = screen; lines = height; cols = width; 
          help_win = None; hw_lines = 0; hw_cols = 0;
          stack_win = right_win; sw_lines = (height - 2); sw_cols = 40;
-         entry_win = bottom_win; ew_lines = 2; ew_cols = 40}
+         entry_win = bottom_win; ew_lines = 2; ew_cols = 40;
+         is_paused = false}
       else
-         (endwin ();
-         failwith "Orpie requires at least a 40 column window.")
+        (
+          endwin ();
+          let right_win = newwin (height - 2) 40 0 0 and
+          bottom_win = newwin 2 width (height - 2) 0 in
+          {stdscr = screen; lines = height; cols = width;
+          help_win = None; hw_lines = 0; hw_cols = 0;
+          stack_win = right_win; sw_lines = (height - 2); sw_cols = 40;
+          entry_win = bottom_win; ew_lines = 2; ew_cols = 40;
+          is_paused = true}
+        )
    else
-      (endwin (); 
-      failwith "Orpie requires at least a 24 line window.");;
+      (
+        endwin ();
+        let right_win = newwin (height - 2) 40 0 0 and
+        bottom_win = newwin 2 width (height - 2) 0 in
+        {stdscr = screen; lines = height; cols = width;
+        help_win = None; hw_lines = 0; hw_cols = 0;
+        stack_win = right_win; sw_lines = (height - 2); sw_cols = 40;
+        entry_win = bottom_win; ew_lines = 2; ew_cols = 40;
+        is_paused = true}
+    );;
 
 
 (* resize the various windows to fit the new terminal size *)
@@ -92,7 +110,8 @@ let resize_subwins scr =
             assert (wresize scr.entry_win 2 80);
             assert (mvwin scr.entry_win (height - 2) 0);
             scr.ew_lines <- 2;
-            scr.ew_cols <- 80
+            scr.ew_cols <- 80;
+            scr.is_paused <- false
          end
       else if width >= 40 then
          (* only the stack window is provided *)
@@ -115,14 +134,21 @@ let resize_subwins scr =
             assert (wresize scr.entry_win 2 40);
             assert (mvwin scr.entry_win (height - 2) 0);
             scr.ew_lines <- 2;
-            scr.ew_cols <- 40
+            scr.ew_cols <- 40;
+            scr.is_paused <- false
          end
       else
-         (endwin ();
-         failwith "Orpie requires at least a 40 column window.")
+         begin
+            endwin ();
+            scr.is_paused <- true
+            (* failwith "Orpie requires at least a 40 column window." *)
+         end
    else
-      (endwin (); 
-      failwith "Orpie requires at least a 24 line window.");;
+      begin
+         endwin ();
+         scr.is_paused <- true
+         (* failwith "Orpie requires at least a 24 line window." *)
+      end
 
 
 
@@ -2106,6 +2132,10 @@ let do_main_loop (iface : interface_state_t) =
       if key = Key.resize then
          handle_resize iface
       else
+        begin
+         (* Printf.fprintf stderr "key: \\d%d \\%o %s (%s)\r\n" key key (Curses.keyname key) (Curses.keyname 566); *)
+         (* Printf.fprintf stderr "key: %s\r\n" (Curses.keyname key); *)
+         (* flush stderr; *)
          match iface.interface_mode with
          |StandardEditMode -> handle_keypress_standard key iface
          |IntEditMode      -> handle_keypress_intedit key iface
@@ -2113,6 +2143,7 @@ let do_main_loop (iface : interface_state_t) =
          |VarEditMode      -> handle_keypress_varedit key iface
          |UnitEditMode     -> handle_keypress_unitedit key iface
          |BrowsingMode     -> handle_keypress_browse key iface
+        end
    done
 
 
@@ -2141,6 +2172,13 @@ let run (iface : interface_state_t) =
             draw_error iface err;
             draw_update_entry iface
    end;
+
+   if iface.scr.is_paused then
+   begin
+      Printf.fprintf stderr "Orpie requires at least an 80x24 line window.\r\n";
+      flush stderr;
+   end;
+
    do_main_loop iface
         
 
